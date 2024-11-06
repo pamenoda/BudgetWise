@@ -1,37 +1,16 @@
-import { Tabs } from 'expo-router';
 import React from 'react';
+import { Tabs } from 'expo-router';
+import { TabBar } from '@/components/TabBar';
 
-import { TabBarIcon } from '@/components/navigation/TabBarIcon';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+const TabLayout = () => {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'home' : 'home-outline'} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'code-slash' : 'code-slash-outline'} color={color} />
-          ),
-        }}
-      />
+    <Tabs tabBar={props => <TabBar {...props} />}>
+      <Tabs.Screen name='index' options={{ title: "Dashboard", headerShown: false }} />
+      <Tabs.Screen name='graphs' options={{ title: "Graphs", headerShown: false }} />
+      <Tabs.Screen name='heatMap' options={{ title: "Map", headerShown: false }} />
+      <Tabs.Screen name='addExpense' options={{ title: "Add Expense", headerShown: false }} />
     </Tabs>
   );
 }
+
+export default TabLayout;

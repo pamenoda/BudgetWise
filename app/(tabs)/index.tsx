@@ -1,70 +1,101 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import Colors from '@/constants/Colors';
+import ExpenseBlock from '@/components/ExpenseBlock';
+import dbPromise from '@/scripts/database'; 
+import { ExpenseType } from "@/types";
+import { useFocusEffect } from 'expo-router';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const Index = () => {
+  const [totalAmount, setTotalAmount] = useState<number>(0);
+  const [expenses, setExpenses] = useState<ExpenseType[]>([]);
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  // Combine database logic into one helper function
+  const loadExpenses = async () => {
+    const today = new Date();
+    try {
+      const db = await dbPromise;
+
+      // If today is the first day of the month, clear all expenses
+      if (today.getDate() === 1) {
+        await db.execAsync('DELETE FROM expenses');
+        Alert.alert('Reset', 'All expenses have been cleared for the new month.');
+      }
+
+      // Fetch all expenses
+      const result = (await db.getAllAsync('SELECT * FROM expenses')) as ExpenseType[];
+      setExpenses(result);
+
+      // Calculate total amount
+      const total = result.reduce((sum: number, expense: ExpenseType) => sum + (expense.amount || 0), 0);
+      setTotalAmount(total);
+
+    } catch (error) {
+      console.error("Error during expense loading or reset:", error);
+    }
+  };
+
+  // Memoize totalAmount for rendering optimization
+  const totalAmountDisplay = useMemo(() => totalAmount.toFixed(2), [totalAmount]);
+
+  const handleDeleteExpense = useCallback(async (expenseId: number) => {
+    try {
+      const db = await dbPromise;
+      await db.execAsync(`DELETE FROM expenses WHERE id = ${expenseId}`);
+      loadExpenses(); // Refresh expenses after deletion
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadExpenses();
+    }, [])
   );
-}
+
+  return (
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>My <Text style={styles.bold}>Expenses</Text></Text>
+            <Text style={styles.totalAmount}>${totalAmountDisplay}</Text>
+          </View>
+        </View>
+        <ExpenseBlock expenses={expenses} onDelete={handleDeleteExpense} />
+      </ScrollView>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: 20,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 30,
+  },
   titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  title: {
+    color: Colors.white,
+    fontSize: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  bold: {
+    fontWeight: '700',
+  },
+  totalAmount: {
+    color: Colors.white,
+    fontSize: 36,
+    fontWeight: '700',
   },
 });
+
+export default Index;
